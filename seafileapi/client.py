@@ -3,13 +3,19 @@ import re
 from seafileapi.utils import urljoin, is_ascii
 from seafileapi.exceptions import ClientHttpError
 from seafileapi.repos import Repos
-
+from typing import Optional
+from sys import exit
 request_filename_pattern = re.compile(b'filename\*=.*')
 
+seahub_api_auth_token = 40
 
 class SeafileApiClient(object):
     """Wraps seafile web api"""
-    def __init__(self, server, username=None, password=None, token=None, verify_ssl=True):
+    def __init__(self, server: str,
+                 username: Optional[str] = None,
+                 password: Optional[str] = None,
+                 token: Optional[str] = None,
+                 verify_ssl: bool = True):
         """Wraps various basic operations to interact with seahub http api.
         """
         self.server = server
@@ -17,7 +23,7 @@ class SeafileApiClient(object):
         self.password = password
         self._token = token
         self.verify_ssl = verify_ssl
-
+        self.default_timeout = 30
         self.repos = Repos(self)
         self.groups = Groups(self)
 
@@ -30,12 +36,20 @@ class SeafileApiClient(object):
             'password': self.password,
         }
         url = urljoin(self.server, '/api2/auth-token/')
-        res = requests.post(url, data=data, verify=self.verify_ssl)
-        if res.status_code != 200:
-            raise ClientHttpError(res.status_code, res.content)
-        token = res.json()['token']
-        assert len(token) == 40, 'The length of seahub api auth token should be 40'
-        self._token = token
+        try:
+            with requests.post(url, data=data, verify=self.verify_ssl, timeout=self.default_timeout) as resp:
+                if resp.status_code != 200:
+                    raise ClientHttpError(resp.status_code, resp.content)
+                try:
+                    _token = resp.json()
+                except Exception as e:
+                    print(e, flush=True)
+                else:
+                    self._token = _token.get('token', '')
+                    if len(self._token) != seahub_api_auth_token:
+                        exit('The length of seahub api auth token should be 40')
+        except Exception as e:
+            exit(e)
 
     def __str__(self):
         return 'SeafileApiClient[server=%s, user=%s]' % (self.server, self.username)
@@ -52,7 +66,7 @@ class SeafileApiClient(object):
         return self._send_request('PUT', *args, **kwargs)
 
     def delete(self, *args, **kwargs):
-        return self._send_request('delete', *args, **kwargs)
+        return self._send_request('DELETE', *args, **kwargs)
 
     def _rewrite_request(self, *args, **kwargs):
         def func(prepared_request):
@@ -67,7 +81,7 @@ class SeafileApiClient(object):
             return prepared_request
         return func
 
-    def _send_request(self, method, url, *args, **kwargs):
+    def _send_request(self, method: str, url: str, *args, **kwargs) -> Optional[requests.Response]:
         if not url.startswith('http'):
             url = urljoin(self.server, url)
 
@@ -80,14 +94,21 @@ class SeafileApiClient(object):
             expected = (expected, )
 
         kwargs['auth'] = self._rewrite_request(*args, **kwargs)  # hack to rewrite post body
-        resp = requests.request(method, url, *args, verify=self.verify_ssl, **kwargs)
 
-        if resp.status_code not in expected:
-            msg = 'Expected %s, but get %s' % \
-                  (' or '.join(map(str, expected)), resp.status_code)
-            raise ClientHttpError(resp.status_code, msg)
-
-        return resp
+        kwargs['method'] = method
+        kwargs['url'] = url
+        kwargs['verify'] = self.verify_ssl
+        kwargs['timeout'] = self.default_timeout
+        try:
+            resp = requests.request(*args, **kwargs)
+        except Exception as e:
+            print(e, flush=True)
+        else:
+            if resp.status_code not in expected:
+                msg = 'Expected %s, but get %s' % \
+                      (' or '.join(map(str, expected)), resp.status_code)
+                raise ClientHttpError(resp.status_code, msg)
+            return resp
 
 
 class Groups(object):

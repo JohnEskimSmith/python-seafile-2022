@@ -1,4 +1,3 @@
-
 class ClientHttpError(Exception):
     """This exception is raised if the returned http response is not as
     expected"""
@@ -9,6 +8,7 @@ class ClientHttpError(Exception):
 
     def __str__(self):
         return 'ClientHttpError[%s: %s]' % (self.code, self.message)
+
 
 class OperationError(Exception):
     """Expcetion to raise when an opeartion is failed"""

@@ -1,13 +1,13 @@
 from setuptools import setup, find_packages
 
-__version__ = '0.2.4'
+__version__ = '0.0.1'
 
 
-setup(name='python-seafile-api',
+setup(name='python-seafile-2022',
       version=__version__,
       license='BSD',
-      description='Client interface for Seafile Web API',
-      author='Igor Rumyantsev',
+      description='Client interface for Seafile Web API(2022)',
+      author='Igor Rumyantsev, Andrey Skhomenko',
       author_email='igorrum@mail.ru',
       url='https://github.com/Widly/python-seafile',
       platforms=['Any'],

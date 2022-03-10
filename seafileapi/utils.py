@@ -3,13 +3,16 @@ import random
 from functools import wraps
 from urllib.parse import urlencode
 from seafileapi.exceptions import ClientHttpError, DoesNotExist
+from typing import Any, List, Dict, Union
 
-def randstring(length=0):
+
+def randstring(length: int) -> str:
     if length == 0:
-        length = random.randint(1, 30)
-    return ''.join(random.choice(string.lowercase) for i in range(length))
+        return ''.join(random.choice(string.ascii_lowercase) for _ in range(random.randint(1, 30)))
+    return ''.join(random.choice(string.ascii_lowercase) for _ in range(length))
 
-def urljoin(base, *args):
+
+def urljoin(base: str, *args) -> str:
     url = base
     if url[-1] != '/':
         url += '/'
@@ -19,6 +22,7 @@ def urljoin(base, *args):
     if '?' in url:
         url = url[:-1]
     return url
+
 
 def raise_does_not_exist(msg):
     """Decorator to turn a function that get a http 404 response to a
@@ -36,13 +40,16 @@ def raise_does_not_exist(msg):
         return wrapped
     return decorator
 
+
 def to_utf8(obj):
     return obj
 
-def querystr(**kwargs):
+
+def querystr(**kwargs) -> str:
     return '?' + urlencode(kwargs)
 
-def utf8lize(obj):
+
+def utf8lize(obj: Any) -> Union[List, Dict, Any]:
     if isinstance(obj, dict):
         return {k: to_utf8(v) for k, v in obj.items()}
 
@@ -51,7 +58,8 @@ def utf8lize(obj):
 
     return obj
 
-def is_ascii(text):
+
+def is_ascii(text) -> bool:
     try:
         text.encode('ascii')
     except UnicodeEncodeError:
