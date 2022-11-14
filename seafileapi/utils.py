@@ -1,9 +1,10 @@
-import string
-import random
 from functools import wraps
+import random
+import string
+from typing import Any, List, Dict, Union, Callable
 from urllib.parse import urlencode
+
 from seafileapi.exceptions import ClientHttpError, DoesNotExist
-from typing import Any, List, Dict, Union
 
 
 def randstring(length: int) -> str:
@@ -24,7 +25,7 @@ def urljoin(base: str, *args) -> str:
     return url
 
 
-def raise_does_not_exist(msg):
+def raise_does_not_exist(msg) -> Callable:
     """Decorator to turn a function that get a http 404 response to a
     :exc:`DoesNotExist` exception."""
     def decorator(func):
@@ -41,7 +42,7 @@ def raise_does_not_exist(msg):
     return decorator
 
 
-def to_utf8(obj):
+def to_utf8(obj) -> Any:
     return obj
 
 

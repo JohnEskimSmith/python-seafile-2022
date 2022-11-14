@@ -1,11 +1,12 @@
 from urllib.parse import urlencode
+from typing import Optional
+
 from seafileapi.utils import utf8lize
 from seafileapi.files import SeafDir, SeafFile
 from seafileapi.utils import raise_does_not_exist
-from typing import Optional
 
 
-class Repo(object):
+class Repo:
     """
     A seafile library
     """
@@ -19,7 +20,7 @@ class Repo(object):
         self.perm = perm
 
     @classmethod
-    def from_json(cls, client, repo_json):
+    def from_json(cls, client, repo_json) -> "Repo":
         repo_json = utf8lize(repo_json)
 
         repo_id = repo_json['id']
@@ -30,7 +31,7 @@ class Repo(object):
 
         return cls(client, repo_id, repo_name, encrypted, owner, perm)
 
-    def is_readonly(self):
+    def is_readonly(self) -> bool:
         return 'w' not in self.perm
 
     @raise_does_not_exist('The requested file does not exist')
@@ -71,12 +72,12 @@ class Repo(object):
             except Exception as e:
                 print(e, flush=True)
 
-
     def delete(self):
         """Remove this repo. Only the repo owner can do this"""
         response = self.client.delete(f'/api2/repos/{self.id}')
         if response:
-            print(f'status deleted: {self.id} - {response.ok}')
+            if response.ok:
+                print(f'status deleted: {self.id}')
         else:
             print(f'errors with delete {self.id}')
 
@@ -108,7 +109,7 @@ class Repo(object):
         pass
 
 
-class RepoRevision(object):
+class RepoRevision:
     def __init__(self, client, repo, commit_id):
         self.client = client
         self.repo = repo

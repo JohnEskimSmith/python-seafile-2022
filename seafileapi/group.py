@@ -1,6 +1,6 @@
 
 
-class Group(object):
+class Group:
     def __init__(self, client, group_id, group_name):
         self.client = client
         self.group_id = group_id

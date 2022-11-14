@@ -1,10 +1,10 @@
+from urllib.parse import urlencode
+from typing import Optional, List
+
 from seafileapi.repo import Repo
 from seafileapi.utils import raise_does_not_exist
-from urllib.parse import urlencode
-from typing import Optional
 
-
-class Repos(object):
+class Repos:
 
     def __init__(self, client: "SeafileApiClient"):
         self.client = client
@@ -37,7 +37,7 @@ class Repos(object):
             except Exception as e:
                 print(e, flush=True)
 
-    def list_repos(self, type=None):
+    def list_repos(self, type=None) -> Optional[List[Repo]]:
         query = ''
         if type:
             query = '?' + urlencode(dict(type=type))

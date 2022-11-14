@@ -2,12 +2,14 @@ import io
 import os
 import posixpath
 import re
+from typing import Optional, Union, Any
+
 from seafileapi.utils import querystr, utf8lize
-from typing import Optional
+
 ZERO_OBJ_ID = '0000000000000000000000000000000000000000'
 
 
-class _SeafDirentBase(object):
+class _SeafDirentBase:
     """Base class for :class:`SeafFile` and :class:`SeafDir`.
 
     It provides implementation of their common operations.
@@ -40,7 +42,7 @@ class _SeafDirentBase(object):
         resp = self.client.delete(url)
         return resp
 
-    def rename(self, newname):
+    def rename(self, newname) -> bool:
         """Change file/folder name to newname
         """
         suffix = 'dir' if self.isdir else 'file'
@@ -68,7 +70,7 @@ class _SeafDirentBase(object):
         dst_repo_id = dst_repo_id
         dst_parent_dir = dst_dir
         operation = operation
-        dirent_type =  dirent_type
+        dirent_type = dirent_type
         postdata = {'src_repo_id': src_repo_id,
                     'src_parent_dir': src_parent_dir,
                     'src_dirent_name': src_dirent_name,
@@ -78,7 +80,7 @@ class _SeafDirentBase(object):
                     'dirent_type': dirent_type}
         return self.client.post(url, data=postdata)
 
-    def copyTo(self, dst_dir, dst_repo_id=None) -> Optional[bool]:
+    def copyTo(self, dst_dir, dst_repo_id=None) -> bool:
         """Copy file/folder to other directory (also to a different repo)
         """
         if dst_repo_id is None:
@@ -88,6 +90,7 @@ class _SeafDirentBase(object):
         resp = self._copy_move_task('copy', dirent_type, dst_dir, dst_repo_id)
         if resp:
             return resp.status_code == 200
+        return False
 
     def moveTo(self, dst_dir, dst_repo_id=None):
         """Move file/folder to other directory (also to a different repo)
@@ -163,7 +166,7 @@ class SeafDir(_SeafDirentBase):
 
         return self.entries
 
-    def share_to_user(self, email, permission):
+    def share_to_user(self, email, permission) -> bool:
         url = f'/api2/repos/{self.repo.id}/dir/shared_items/' + querystr(p=self.path)
         putdata = {
             'share_type': 'user',
@@ -175,8 +178,9 @@ class SeafDir(_SeafDirentBase):
             return response.status_code == 200
         else:
             print(f'errors with share: {email}, {permission}')
+        return False
 
-    def create_empty_file(self, name):
+    def create_empty_file(self, name) -> Optional["SeafFile"]:
         """Create a new empty file in this dir.
         Return a :class:`SeafFile` object of the newly created file.
         """
@@ -193,7 +197,7 @@ class SeafDir(_SeafDirentBase):
             except Exception as e:
                 print(e, flush=True)
 
-    def mkdir(self, name):
+    def mkdir(self, name) -> Optional["SeafDir"]:
         """Create a new sub folder right under this dir.
 
         Return a :class:`SeafDir` object of the newly created sub folder.
@@ -210,7 +214,7 @@ class SeafDir(_SeafDirentBase):
             except Exception as e:
                 print(e, flush=True)
 
-    def upload(self, fileobj, filename: str, replace=False):
+    def upload(self, fileobj, filename: str, replace=False) -> Optional["SeafFile"]:
         """Upload a file to this folder.
 
         :param:fileobj :class:`File` like object
@@ -239,7 +243,7 @@ class SeafDir(_SeafDirentBase):
         else:
             print(f'error with upload_url for: {filename}')
 
-    def upload_local_file(self, filepath, name=None, replace=False):
+    def upload_local_file(self, filepath, name=None, replace=False) -> Optional["SeafFile"]:
         """Upload a file to this folder.
 
         :param:filepath The path to the local file
@@ -247,9 +251,12 @@ class SeafDir(_SeafDirentBase):
 
         Return a :class:`SeafFile` object of the newly uploaded file.
         """
-        name = name or os.path.basename(filepath)
-        fp = open(filepath, 'rb')
-        return self.upload(fp, name, replace)
+        try:
+            name = name or os.path.basename(filepath)
+            fp = open(filepath, 'rb')
+            return self.upload(fp, name, replace)
+        except Exception as e:
+            print(e, flush=True)
 
     def _get_upload_link(self):
         url = f'/api2/repos/{self.repo.id}/upload-link/' + querystr(p=self.path)
@@ -261,7 +268,6 @@ class SeafDir(_SeafDirentBase):
             except Exception as e:
                 print(e, flush=True)
 
-
     def get_uploadable_sharelink(self):
         """Generate a uploadable shared link to this dir.
 
@@ -269,14 +275,14 @@ class SeafDir(_SeafDirentBase):
         """
         pass
 
-    def load_entries(self, dirents_json=None):
+    def load_entries(self, dirents_json=None) -> None:
         if dirents_json is None:
             url = '/api2/repos/%s/dir/' % self.repo.id + querystr(p=self.path)
             dirents_json = self.client.get(url).json()
 
         self.entries = [self._load_dirent(entry_json) for entry_json in dirents_json]
 
-    def _load_dirent(self, dirent_json):
+    def _load_dirent(self, dirent_json) -> Union["SeafFile", "SeafDir"]:
         dirent_json = utf8lize(dirent_json)
         path = posixpath.join(self.path, dirent_json['name'])
         if dirent_json['type'] == 'file':
@@ -285,7 +291,7 @@ class SeafDir(_SeafDirentBase):
             return SeafDir(self.repo, path, dirent_json['id'], 0)
 
     @property
-    def num_entries(self):
+    def num_entries(self) -> int:
         if self.entries is None:
             self.load_entries()
         return len(self.entries) if self.entries is not None else 0
@@ -300,7 +306,17 @@ class SeafDir(_SeafDirentBase):
 class SeafFile(_SeafDirentBase):
     isdir = False
 
-    def update(self, fileobj):
+    def _get_delete_link(self) -> str:
+        url: str = '/api2/repos/%s/file/' % self.repo.id + querystr(p=self.path)
+        return url
+
+    def delete_file(self) -> Optional[bytes]:
+        url: str = self._get_delete_link()
+        if response := self.client.delete(url):
+            if response.ok:
+               return response.content
+
+    def update(self, fileobj) -> None:
         """Update the content of this file"""
         pass
 
@@ -313,7 +329,7 @@ class SeafFile(_SeafDirentBase):
         resp = self.client.get(url)
         return re.match(r'"(.*)"', resp.text).group(1)
 
-    def get_content(self):
+    def get_content(self) -> bytes:
         """Get the content of the file"""
         url = self._get_download_link()
         return self.client.get(url).content

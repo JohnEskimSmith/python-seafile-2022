@@ -1,15 +1,19 @@
 import requests
 import re
+from typing import Optional, Callable
+from sys import exit
+
 from seafileapi.utils import urljoin, is_ascii
 from seafileapi.exceptions import ClientHttpError
 from seafileapi.repos import Repos
-from typing import Optional
-from sys import exit
+
+
 request_filename_pattern = re.compile(b'filename\*=.*')
 
 seahub_api_auth_token = 40
 
-class SeafileApiClient(object):
+
+class SeafileApiClient:
     """Wraps seafile web api"""
     def __init__(self, server: str,
                  username: Optional[str] = None,
@@ -23,7 +27,7 @@ class SeafileApiClient(object):
         self.password = password
         self._token = token
         self.verify_ssl = verify_ssl
-        self.default_timeout = 30
+        self.default_timeout = 120
         self.repos = Repos(self)
         self.groups = Groups(self)
 
@@ -93,7 +97,8 @@ class SeafileApiClient(object):
         if not hasattr(expected, '__iter__'):
             expected = (expected, )
 
-        kwargs['auth'] = self._rewrite_request(*args, **kwargs)  # hack to rewrite post body
+        # my some dirty hack to rewrite post body
+        kwargs['auth']: Optional[Callable] = self._rewrite_request(*args, **kwargs)  # hack to rewrite post body
 
         kwargs['method'] = method
         kwargs['url'] = url
@@ -111,7 +116,7 @@ class SeafileApiClient(object):
             return resp
 
 
-class Groups(object):
+class Groups:
     def __init__(self, client):
         pass
 
